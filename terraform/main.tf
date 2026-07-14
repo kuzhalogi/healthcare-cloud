@@ -11,11 +11,11 @@ terraform {
   # Remote state. Values cannot be interpolated here, so the bucket name is
   # hardcoded. It comes from the bootstrap output.
   backend "s3" {
-    bucket         = "healthcare-tfstate-471112650617"
-    key            = "healthcare/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    use_lockfile   = true
+    bucket       = "healthcare-tfstate-471112650617"
+    key          = "healthcare/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
   }
 }
 
