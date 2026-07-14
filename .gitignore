@@ -1,15 +1,17 @@
 # Terraform
-terraform/.terraform/
-terraform/.terraform.lock.hcl
-terraform/build/
+**/.terraform/
+**/build/
 *.tfstate
 *.tfstate.*
 *.tfvars
+!*.tfvars.example
 
 # Node
 node_modules/
 dist/
 .env
+frontend/.env
+frontend/dist/
 
 # OS
 .DS_Store
