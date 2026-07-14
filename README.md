@@ -1,123 +1,149 @@
-# MedShare — Cloud-Based Healthcare Management System
+# Healthcare Management System on AWS
 
-A serverless hospital data sharing platform on AWS. Doctors and patients sign in, manage patient profiles, book appointments, and attach medical records. Every request is authenticated, encrypted at rest, and logged for audit.
+A serverless healthcare records platform built entirely with Terraform. Three
+Lambda microservices behind an authenticated API, encrypted storage, per-service
+IAM isolation, and a React frontend served from CloudFront.
 
-Built as a deployable, tear-down-in-one-command demo. Running a demo and destroying the stack afterward keeps the cost near zero.
+Deploy with one command. Destroy with one command. Cost returns to zero.
 
 ![Architecture](docs/architecture.svg)
 
-## What this demonstrates
+## Why this exists
 
-This project maps each pillar of a production healthcare architecture to a low-cost serverless service:
+This started as a university assignment that asked for an architecture diagram.
+A diagram proves nothing. This repository is the diagram, built, deployed, and
+torn down on real AWS infrastructure, with every resource defined in code.
 
-| Pillar | Service used | Why |
+## Architecture
+
+| Layer | Service | Purpose |
 |---|---|---|
-| Microservices | AWS Lambda | Three independent functions: patients, appointments, records |
-| API layer | API Gateway (HTTP API) | Routes requests, validates Cognito tokens |
-| Authentication | Amazon Cognito | Doctor and patient groups for role-based access |
-| Structured data | DynamoDB | Pay-per-request, no idle cost |
-| Document storage | Amazon S3 | Encrypted bucket, presigned upload URLs |
-| Encryption | AWS KMS | Encryption at rest on DynamoDB and S3 |
-| Access control | IAM | Least-privilege role scoped per function |
-| Monitoring | CloudWatch | Central logs and a health dashboard |
-| CDN + hosting | CloudFront + S3 | Static React frontend |
+| Frontend | CloudFront + S3 | React app on a private bucket, reachable only through the CDN |
+| API | API Gateway HTTP API | Routes requests, validates JWTs, throttles traffic |
+| Auth | Cognito | User pool with `doctors` and `patients` groups |
+| Compute | Lambda (Node.js 20) | Three microservices: patient, appointment, records |
+| Data | DynamoDB | One table per service, pay-per-request |
+| Documents | S3 | Medical files, uploaded through short-lived presigned URLs |
+| Encryption | KMS | Customer-managed key, rotation enabled |
+| Observability | CloudWatch + SNS | Ten alarms, a dashboard, structured access logs |
+| State | S3 | Remote Terraform state with native locking |
+| CI | GitHub Actions | Format, validate, and plan on every pull request |
 
-## Design decisions
+## Security decisions
 
-I deliberately chose serverless over the EC2, Docker, and Kubernetes stack in the original proposal. Serverless removes idle cost and operational overhead, which matters for a demo that runs briefly and then shuts down. DynamoDB replaces RDS for the same reason: it charges per request instead of per hour.
+**Per-service IAM roles.** Each Lambda has its own role, scoped to its own
+DynamoDB table. The patient service cannot read appointment data. The
+appointment service cannot touch medical documents. A compromised function gets
+access to one table, not three.
 
-I scoped SageMaker analytics, Kinesis telemedicine streaming, and multi-region failover as future work. They add cost and complexity without changing the core proof: authenticated, encrypted, role-based data sharing between healthcare users.
+**KMS via-service conditions.** The Lambdas hold `kms:Decrypt`, but a
+`kms:ViaService` condition restricts it to calls arriving through DynamoDB and
+S3. A compromised function cannot decrypt arbitrary ciphertext directly.
 
-## Tech stack
+**No public bucket.** The frontend bucket blocks all public access. CloudFront
+reaches it through Origin Access Control, and the bucket policy accepts requests
+only from this specific distribution. There is no path to the objects that
+bypasses the CDN.
 
-Backend: Node.js 20 on AWS Lambda, AWS SDK v3
-Frontend: React 18, Vite, amazon-cognito-identity-js
-Infrastructure: Terraform
-Cloud: AWS (Lambda, API Gateway, DynamoDB, S3, Cognito, KMS, IAM, CloudWatch, CloudFront)
+**Scoped S3 prefixes.** The records service writes to `records/{patientId}/`.
+Its IAM policy allows nothing outside that prefix.
 
-## Prerequisites
+**CORS locked to the distribution.** The API allows browser requests only from
+the CloudFront domain, not `*`. A wildcard would let any website on the internet
+call this API using a signed-in user's live session token.
 
-- An AWS account with the AWS CLI configured (`aws configure`)
-- Terraform 1.5 or later
-- Node.js 20 or later
-- A billing alarm set in AWS Budgets (see "Cost safety" below)
+**Access logs with user attribution.** Every API request logs the Cognito subject
+claim of the caller. In a system holding patient health information, who accessed
+what is an audit requirement.
+
+**No stored CI credentials.** GitHub Actions authenticates to AWS through OIDC.
+GitHub presents a signed token, AWS verifies it names this repository, and issues
+credentials that expire in an hour. No access keys exist in GitHub secrets.
+
+**No apply from CI.** The pipeline runs format, validate, and plan. It cannot
+deploy, because the CI role has read-only permissions in AWS. Auto-deploying a
+healthcare system on every merge is not a property worth having.
+
+## Cost
+
+Every service sits inside the AWS free tier at demo scale. The stack is destroyed
+between demos, so the running cost is zero. The state bucket and lock file stay up
+permanently and cost nothing when idle.
+
+The API is throttled at 50 requests per second sustained, 100 burst. That caps
+blast radius on a runaway loop as much as it protects the backend.
 
 ## Deploy
 
+Prerequisites: AWS CLI configured, Terraform 1.10 or later, Node.js 20 or later.
+
+### One-time backend setup
+
+Creates the state bucket and the GitHub Actions role.
+
 ```bash
+cd terraform/bootstrap
+cp terraform.tfvars.example terraform.tfvars   # set github_repo
+terraform init
+terraform apply
+```
+
+Copy the `state_bucket` output into the `backend "s3"` block in `terraform/main.tf`.
+
+### Deploy the stack
+
+```bash
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars   # set alert_email
 ./deploy.sh
 ```
 
-This installs the records function dependencies, runs Terraform, and prints the outputs you need for the frontend.
+This provisions the infrastructure, writes `frontend/.env` from the Terraform
+outputs, builds the React app, syncs it to S3, and invalidates the CloudFront
+cache. The frontend URL prints at the end.
 
-### Configure the frontend
-
-Copy the Terraform outputs into `frontend/src/config.js`:
-
-```bash
-cd terraform && terraform output
-```
-
-Paste `api_url`, `cognito_user_pool_id`, and `cognito_client_id` into the config file.
-
-### Create a demo user
+### Create a user
 
 ```bash
-./create-user.sh doctor@demo.com DemoPass123 doctors
+./create-user.sh doctor@example.com YourPass123 doctors
 ```
 
-### Run the frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open the local URL, sign in with the demo user, and add patients, appointments, and records.
-
-## Destroy
+### Destroy
 
 ```bash
 ./destroy.sh
 ```
 
-This deletes every resource. Your bill for the project returns to zero.
+Confirm the SNS subscription in your email after the first apply, or the alarms
+will not notify you.
 
-## Cost safety
-
-Before deploying, set two billing alarms in AWS Budgets, at $1 and $5. You get an email the moment spending starts.
-
-At demo scale, every service here sits inside the AWS Free Tier. The main cost risk is leaving resources running, so destroy the stack when you finish. Because the whole stack is defined in Terraform, you redeploy in a few minutes whenever you want to demo again.
-
-## Project structure
+## Repository layout
 
 ```
-healthcare-cloud/
-├── terraform/          Infrastructure as code
-│   ├── main.tf         Provider and variables
-│   ├── data.tf         DynamoDB tables, S3, KMS
-│   ├── auth.tf         Cognito user pool and groups
-│   ├── iam.tf          Least-privilege Lambda role
-│   ├── lambda.tf       Function definitions and packaging
-│   ├── api.tf          API Gateway routes and authorizer
-│   └── outputs.tf      CloudWatch dashboard and outputs
-├── lambda/
-│   ├── patient/        Patient management service
-│   ├── appointment/    Appointment scheduling service
-│   └── records/        Medical records service
-├── frontend/           React app
-├── deploy.sh
-├── destroy.sh
-└── create-user.sh
+terraform/
+  main.tf          Provider, backend, common tags
+  variables.tf     Inputs
+  auth.tf          Cognito user pool and groups
+  data.tf          DynamoDB tables, S3 documents bucket, KMS key
+  iam.tf           Three per-service Lambda execution roles
+  lambda.tf        Function definitions and packaging
+  api.tf           HTTP API, Cognito authorizer, routes, access logs
+  monitoring.tf    Alarms, log groups, metric filters, dashboard
+  frontend.tf      CloudFront distribution and private S3 bucket
+  outputs.tf       Deploy outputs
+  bootstrap/       State bucket and GitHub Actions OIDC role. Run once.
+
+lambda/
+  patient/         Patient CRUD
+  appointment/     Appointment scheduling
+  records/         Medical records and presigned document uploads
+
+frontend/          React 18, Vite, Cognito auth
 ```
 
-## Security notes
+## Scope
 
-- All data at rest is encrypted with a customer-managed KMS key
-- All data in transit uses TLS through API Gateway and CloudFront
-- API routes require a valid Cognito JWT
-- The Lambda IAM role can touch only this project's tables, bucket, and key
-- S3 public access is fully blocked; documents upload through short-lived presigned URLs
-
-This is a demo, not a HIPAA-certified production system. HIPAA compliance requires a signed AWS Business Associate Addendum, audit controls, and organizational safeguards beyond application code.
+This is not a HIPAA-compliant production system. HIPAA requires a signed AWS
+Business Associate Addendum, organizational safeguards, and audit controls beyond
+what application code provides. The architecture demonstrates the technical
+controls a compliant system would build on: encryption at rest and in transit,
+least-privilege access, and an audit trail.
