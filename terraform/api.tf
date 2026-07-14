@@ -4,9 +4,13 @@ resource "aws_apigatewayv2_api" "main" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = ["*"]
+    allow_origins = concat(
+      ["https://${aws_cloudfront_distribution.frontend.domain_name}"],
+      var.local_dev_origins
+    )
     allow_methods = ["GET", "POST", "OPTIONS"]
     allow_headers = ["Content-Type", "Authorization"]
+    max_age       = 300
   }
 
   tags = local.tags
@@ -76,6 +80,31 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.main.id
   name        = "$default"
   auto_deploy = true
+
+  # Without this, the API emits no per-route metrics and the 5xx alarm
+  # never leaves INSUFFICIENT_DATA.
+  default_route_settings {
+    detailed_metrics_enabled = true
+    throttling_burst_limit   = 100
+    throttling_rate_limit    = 50
+  }
+
+  # Access logs. In a PHI system, who called what and when is an audit
+  # requirement, not a debugging nicety.
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api.arn
+    format = jsonencode({
+      requestId      = "$context.requestId"
+      ip             = "$context.identity.sourceIp"
+      requestTime    = "$context.requestTime"
+      httpMethod     = "$context.httpMethod"
+      routeKey       = "$context.routeKey"
+      status         = "$context.status"
+      responseLength = "$context.responseLength"
+      integrationErr = "$context.integrationErrorMessage"
+      userSub        = "$context.authorizer.claims.sub"
+    })
+  }
 
   tags = local.tags
 }

@@ -1,49 +1,3 @@
-# CloudWatch dashboard giving you one screen of system health for the demo
-resource "aws_cloudwatch_dashboard" "main" {
-  dashboard_name = "${var.project_name}-health"
-
-  dashboard_body = jsonencode({
-    widgets = [
-      {
-        type   = "metric"
-        x      = 0
-        y      = 0
-        width  = 12
-        height = 6
-        properties = {
-          title  = "Lambda invocations"
-          region = var.aws_region
-          metrics = [
-            ["AWS/Lambda", "Invocations", "FunctionName", aws_lambda_function.patient.function_name],
-            ["AWS/Lambda", "Invocations", "FunctionName", aws_lambda_function.appointment.function_name],
-            ["AWS/Lambda", "Invocations", "FunctionName", aws_lambda_function.records.function_name]
-          ]
-          period = 300
-          stat   = "Sum"
-        }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 0
-        width  = 12
-        height = 6
-        properties = {
-          title  = "Lambda errors"
-          region = var.aws_region
-          metrics = [
-            ["AWS/Lambda", "Errors", "FunctionName", aws_lambda_function.patient.function_name],
-            ["AWS/Lambda", "Errors", "FunctionName", aws_lambda_function.appointment.function_name],
-            ["AWS/Lambda", "Errors", "FunctionName", aws_lambda_function.records.function_name]
-          ]
-          period = 300
-          stat   = "Sum"
-        }
-      }
-    ]
-  })
-}
-
 # These values feed your frontend config after deploy
 output "api_url" {
   description = "Base URL for the API"
@@ -73,4 +27,19 @@ output "documents_bucket" {
 output "dashboard_url" {
   description = "CloudWatch dashboard link"
   value       = "https://${var.aws_region}.console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#dashboards:name=${aws_cloudwatch_dashboard.main.dashboard_name}"
+}
+
+output "frontend_url" {
+  description = "Public URL of the React app."
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+}
+
+output "frontend_bucket" {
+  description = "S3 bucket holding the built frontend."
+  value       = aws_s3_bucket.frontend.id
+}
+
+output "cloudfront_distribution_id" {
+  description = "Distribution ID, used to invalidate the cache after a deploy."
+  value       = aws_cloudfront_distribution.frontend.id
 }
