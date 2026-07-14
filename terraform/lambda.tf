@@ -23,7 +23,7 @@ resource "aws_lambda_function" "patient" {
   source_code_hash = data.archive_file.patient.output_base64sha256
   handler          = "index.handler"
   runtime          = "nodejs20.x"
-  role             = aws_iam_role.lambda.arn
+  role             = aws_iam_role.lambda["patient"].arn
   timeout          = 10
 
   environment {
@@ -41,7 +41,7 @@ resource "aws_lambda_function" "appointment" {
   source_code_hash = data.archive_file.appointment.output_base64sha256
   handler          = "index.handler"
   runtime          = "nodejs20.x"
-  role             = aws_iam_role.lambda.arn
+  role             = aws_iam_role.lambda["appointment"].arn
   timeout          = 10
 
   environment {
@@ -59,7 +59,7 @@ resource "aws_lambda_function" "records" {
   source_code_hash = data.archive_file.records.output_base64sha256
   handler          = "index.handler"
   runtime          = "nodejs20.x"
-  role             = aws_iam_role.lambda.arn
+  role             = aws_iam_role.lambda["records"].arn
   timeout          = 10
 
   environment {
