@@ -1,0 +1,4 @@
+git checkout -b ci/terraform-workflow
+git add .github/workflows/terraform.yml
+git commit -m "Add Terraform CI: fmt check, validate, and plan on pull requests"
+git push -u origin ci/terraform-workflow
