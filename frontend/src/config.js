@@ -1,10 +1,10 @@
-// Fill these in from the terraform output after you deploy.
-// Run: terraform output
+// Values come from environment variables at build time.
+// Populate .env from terraform output before running the build.
 const config = {
-  apiUrl: "PASTE_api_url_HERE",
-  userPoolId: "PASTE_cognito_user_pool_id_HERE",
-  clientId: "PASTE_cognito_client_id_HERE",
-  region: "us-east-1",
+  apiUrl: import.meta.env.VITE_API_URL,
+  userPoolId: import.meta.env.VITE_USER_POOL_ID,
+  clientId: import.meta.env.VITE_CLIENT_ID,
+  region: import.meta.env.VITE_REGION,
 };
 
 export default config;

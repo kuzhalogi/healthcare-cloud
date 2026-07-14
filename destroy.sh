@@ -4,4 +4,4 @@ set -e
 cd terraform
 terraform destroy -auto-approve
 echo ""
-echo "==> All resources destroyed. Your AWS bill for this project is now zero."
+echo "==> All resources destroyed. Zero Bill."

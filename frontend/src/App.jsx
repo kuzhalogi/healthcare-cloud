@@ -111,11 +111,19 @@ function Patients({ token }) {
         <button onClick={load}>Refresh</button>
       </div>
       <ul>
-        {list.map((p) => (
-          <li key={p.patientId}>
-            <strong>{p.name}</strong> {p.bloodType && `· ${p.bloodType}`}
-          </li>
-        ))}
+      {list.map((p) => (
+        <li key={p.patientId}>
+          <strong>{p.name}</strong> {p.bloodType && `· ${p.bloodType}`}
+          <br />
+          <code style={{ fontSize: "12px", color: "#8b9aa8" }}>{p.patientId}</code>
+          <button
+            style={{ marginLeft: "8px", padding: "2px 8px", fontSize: "12px" }}
+            onClick={() => navigator.clipboard.writeText(p.patientId)}
+          >
+            Copy ID
+          </button>
+        </li>
+      ))}
       </ul>
     </section>
   );
