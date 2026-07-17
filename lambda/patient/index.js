@@ -41,7 +41,7 @@ exports.handler = async (event) => {
   try {
     if (method === "POST") {
       // Writes are restricted to providers. Any authenticated user may read,
-      // but only the doctors group can create records.
+      // but only the doctors group can perform writes.
       if (!groupsOf(event).includes("doctors")) {
         return respond(403, {
           error: "forbidden: writes are restricted to the doctors group",
