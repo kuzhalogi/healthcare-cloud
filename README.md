@@ -25,9 +25,32 @@ torn down on real AWS infrastructure, with every resource defined in code.
 | Data | DynamoDB | One table per service, pay-per-request |
 | Documents | S3 | Medical files, uploaded through short-lived presigned URLs |
 | Encryption | KMS | Customer-managed key, rotation enabled |
-| Observability | CloudWatch + SNS | Alarms on every function, table, and the API, plus a dashboard and structured access logs |
+| Observability | CloudWatch + SNS | Alarms on function errors, duration, and throttles, on API 5xx, on DynamoDB throttling, and on AccessDenied events, plus a dashboard and structured access logs |
 | State | S3 | Remote Terraform state with native locking |
 | CI | GitHub Actions | Format, validate, and plan on every pull request |
+
+## Proof of deployment
+
+Deployed once on real AWS, captured, then destroyed. The Terraform is the durable
+artifact; these show it running.
+
+**Role-based authorization.** A doctor's token creates a record (`201`); a
+patient's token is rejected on the same write (`403`). All three services enforce
+this identically, reading the group from the verified JWT, not the request body.
+
+![Doctor 201 vs patient 403](docs/screenshots/auth-doctor-201-patient-403.png)
+
+**Frontend over CloudFront.** The React app served over TLS from a private S3
+bucket reachable only through the CDN.
+
+![CloudFront frontend](docs/screenshots/cloudfront-frontend-https.png)
+
+**Observability.** The CloudWatch dashboard after live traffic: Lambda
+invocations and errors, p95 duration, API Gateway request and error counts, and
+DynamoDB consumed capacity. The elevated 4xx line is the authorization layer
+rejecting unauthorized writes.
+
+![CloudWatch dashboard](docs/screenshots/cloudwatch-dashboard.png)
 
 ## Security decisions
 
@@ -52,8 +75,8 @@ reaches it through Origin Access Control, and the bucket policy accepts requests
 only from this specific distribution. There is no path to the objects that
 bypasses the CDN.
 
-**Scoped S3 prefixes.** The records service writes to `records/{patientId}/`.
-Its IAM policy allows nothing outside that prefix.
+**Scoped S3 prefixes.** The records service writes under `records/`. Its IAM
+policy allows nothing outside that prefix.
 
 **CORS locked to the distribution.** The API allows browser requests only from
 the CloudFront domain, not `*`. A wildcard would let any website on the internet
