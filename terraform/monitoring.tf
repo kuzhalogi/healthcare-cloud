@@ -226,12 +226,12 @@ resource "aws_cloudwatch_dashboard" "main" {
           view   = "timeSeries"
           stat   = "Sum"
           period = 300
-          metrics = flatten([
+          metrics = concat([
             for name in values(local.lambda_functions) : [
               ["AWS/Lambda", "Invocations", "FunctionName", name],
               [".", "Errors", ".", "."]
             ]
-          ])
+          ]...)
         }
       },
       {
@@ -283,12 +283,12 @@ resource "aws_cloudwatch_dashboard" "main" {
           view   = "timeSeries"
           stat   = "Sum"
           period = 300
-          metrics = flatten([
+          metrics = concat([
             for name in values(local.dynamodb_tables) : [
               ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", name],
               [".", "ConsumedWriteCapacityUnits", ".", "."]
             ]
-          ])
+          ]...)
         }
       },
       {
