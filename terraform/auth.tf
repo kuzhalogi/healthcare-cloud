@@ -39,17 +39,17 @@ resource "aws_cognito_user_pool_client" "web" {
   generate_secret = false
 }
 
-# Two groups so you demo role based access: doctors and patients
+# Two groups: doctors and patients
 resource "aws_cognito_user_group" "doctors" {
   name         = "doctors"
   user_pool_id = aws_cognito_user_pool.main.id
-  description  = "Healthcare providers with full record access"
+  description  = "Healthcare providers. Read and write access to all records."
   precedence   = 1
 }
 
 resource "aws_cognito_user_group" "patients" {
   name         = "patients"
   user_pool_id = aws_cognito_user_pool.main.id
-  description  = "Patients with access to their own records"
+  description  = "Patients. Read-only access; cannot create records."
   precedence   = 2
 }

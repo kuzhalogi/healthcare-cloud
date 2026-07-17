@@ -74,8 +74,8 @@ resource "aws_cloudfront_distribution" "frontend" {
   default_root_object = "index.html"
   comment             = "${var.project_name} frontend"
 
-  # PriceClass_100 limits edge locations to North America and Europe.
-  # Cheapest tier, and the only one that matters for a demo.
+  # PriceClass_100 limits edge locations to North America and Europe,
+  # Cheapest tier
   price_class = "PriceClass_100"
 
   origin {

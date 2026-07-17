@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------
 # Observability: log retention, alarms, and a dashboard.
-# Alarms cover the four failure modes that matter in a serverless API:
+# Alarms cover the four failure modes:
 # function errors, function latency, gateway 5xx, and table throttling.
 # ---------------------------------------------------------------------------
 

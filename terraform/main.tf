@@ -8,8 +8,11 @@ terraform {
     }
   }
 
-  # Remote state. Values cannot be interpolated here, so the bucket name is
-  # hardcoded. It comes from the bootstrap output.
+  # Remote state bucket. The backend block is read at `terraform init`,
+  # before variables or locals exist, so it cannot interpolate. The name is
+  # hardcoded from the bootstrap output. The embedded account ID is not a
+  # secret: AWS account IDs are semi-public (they appear in every ARN) and
+  # grant no access on their own.
   backend "s3" {
     bucket       = "healthcare-tfstate-471112650617"
     key          = "healthcare/terraform.tfstate"

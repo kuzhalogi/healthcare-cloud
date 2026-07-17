@@ -1,1 +1,4 @@
-alert_email = "kuzhalogiyogis@gmail.com"
+# Copy this file to terraform.tfvars and set your own values.
+# alert_email receives CloudWatch alarm notifications. Confirm the SNS
+# subscription email after the first apply, or the alarms won't notify you.
+alert_email = "you@example.com"

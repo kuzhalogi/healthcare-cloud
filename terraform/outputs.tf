@@ -1,4 +1,4 @@
-# These values feed your frontend config after deploy
+# These values feed our frontend config after deploy
 output "api_url" {
   description = "Base URL for the API"
   value       = aws_apigatewayv2_stage.default.invoke_url

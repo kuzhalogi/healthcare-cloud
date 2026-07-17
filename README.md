@@ -25,11 +25,18 @@ torn down on real AWS infrastructure, with every resource defined in code.
 | Data | DynamoDB | One table per service, pay-per-request |
 | Documents | S3 | Medical files, uploaded through short-lived presigned URLs |
 | Encryption | KMS | Customer-managed key, rotation enabled |
-| Observability | CloudWatch + SNS | Ten alarms, a dashboard, structured access logs |
+| Observability | CloudWatch + SNS | Alarms on every function, table, and the API, plus a dashboard and structured access logs |
 | State | S3 | Remote Terraform state with native locking |
 | CI | GitHub Actions | Format, validate, and plan on every pull request |
 
 ## Security decisions
+
+**Role-based writes.** Every route requires a valid Cognito JWT, so all access
+is authenticated. Beyond that, write operations check the caller's
+`cognito:groups` claim and allow only the `doctors` group to create records;
+patients have read access. The group is read from the token API Gateway already
+verified, not from the request body, so the check cannot be forged by the
+client. Per-patient, row-level authorization is out of scope; see Scope.
 
 **Per-service IAM roles.** Each Lambda has its own role, scoped to its own
 DynamoDB table. The patient service cannot read appointment data. The
@@ -147,3 +154,8 @@ Business Associate Addendum, organizational safeguards, and audit controls beyon
 what application code provides. The architecture demonstrates the technical
 controls a compliant system would build on: encryption at rest and in transit,
 least-privilege access, and an audit trail.
+
+Authorization is role-based, not row-level: the `doctors` group can write and any
+authenticated user can read. Scoping each patient to only their own records would
+build on this by deriving the owner from the token's `sub` claim and querying a
+per-patient index. That is a deliberate next step, not a shipped feature.
